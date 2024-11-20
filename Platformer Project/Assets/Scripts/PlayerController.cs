@@ -14,7 +14,10 @@ public class PlayerController : MonoBehaviour
     public float playerSpeed, maxSpeed, acceleration, accelerationTime;
     public bool decelerate;
     public float distanceToGround;
-    public float jumpHeight;
+    public float apexHeight, apexTime, gravity, initialJumpVelocity;
+    public bool jumping;
+    public float horizontalVelocity, verticalVelocity;
+    public Vector2 currentVelocity;
 
     // Start is called before the first frame update
     void Start()
@@ -28,9 +31,14 @@ public class PlayerController : MonoBehaviour
         // Default value
         decelerate = false;
         direction = FacingDirection.right;
+        jumping = false;
 
         // Get the distance to the ground
         distanceToGround = GetDistanceToGround();
+
+        // Calculate gravity and velocity
+        gravity = -2 * apexHeight / Mathf.Pow(apexTime, 2);
+        initialJumpVelocity = 2 * apexHeight / apexTime;
     }
 
     // Update is called once per frame
@@ -57,18 +65,26 @@ public class PlayerController : MonoBehaviour
         }
         else playerInput = Vector2.zero;
 
+        // If the player is decelerating then keep their input direction the same
+        if (decelerate)
+        {
+            if (direction == FacingDirection.left) playerInput = Vector2.left;
+            else if (direction == FacingDirection.right) playerInput = Vector2.right;
+        }
+
+        // Allow the player to jump if they're grounded
+        if (Input.GetKeyDown(KeyCode.W) && IsGrounded()) verticalVelocity = initialJumpVelocity;
+
         // Move the player
         MovementUpdate(playerInput);
     }
 
     private void MovementUpdate(Vector2 playerInput)
     {
-        // Allow the player to jump if they're grounded
-        if (Input.GetKeyDown(KeyCode.W) && IsGrounded()) rb.AddForce(new Vector2(rb.velocity.x, jumpHeight), ForceMode2D.Impulse);
-
         // Don't move if no input
         if (playerInput != Vector2.zero || decelerate)
         {
+            Debug.Log("test if in here");
             // Decelerate speed
             if (decelerate)
             {
@@ -89,9 +105,16 @@ public class PlayerController : MonoBehaviour
             }
 
             // Move the player
-            rb.AddForce(playerInput * playerSpeed);
-            //rb.MovePosition(rb.position + playerInput * playerSpeed * Time.deltaTime);
+            currentVelocity = new Vector2(playerSpeed * Time.deltaTime * playerInput.x, currentVelocity.y);
         }
+
+        // Apply gravity
+        if (verticalVelocity > gravity) verticalVelocity += gravity * Time.deltaTime;
+        else verticalVelocity = gravity;
+        currentVelocity = new Vector2(currentVelocity.x, verticalVelocity * Time.deltaTime);
+
+
+        rb.MovePosition(rb.position + currentVelocity);
     }
 
     public bool IsWalking()
