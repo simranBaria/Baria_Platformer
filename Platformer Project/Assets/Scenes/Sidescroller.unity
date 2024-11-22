@@ -1761,16 +1761,16 @@ MonoBehaviour:
   decelerate: 0
   acceleration: 0
   accelerationTime: 0.5
-  apexHeight: 4
+  apexHeight: 3.5
   apexTime: 0.5
   initialJumpVelocity: 0
   jumped: 0
-  maxFallSpeed: 45
   gravity: 0
+  terminalSpeed: -20
+  coyoteTime: 10
+  coyoteTimeTimer: 0
   groundCheck: 0.1
   groundPosition: {fileID: 1285139405}
-  roofCheck: 0.1
-  roofPosition: {fileID: 1045767798}
 --- !u!4 &1433354315
 Transform:
   m_ObjectHideFlags: 0

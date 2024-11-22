@@ -25,16 +25,14 @@ public class PlayerController : MonoBehaviour
     public float apexTime;
     public float initialJumpVelocity;
     public bool jumped = false;
-    public float maxFallSpeed;
     public float gravity;
+    public float terminalSpeed;
+    public float coyoteTime;
+    public float coyoteTimeTimer;
 
     // Grounded
     public float groundCheck;
     public Transform groundPosition;
-
-    // Roofed
-    public float roofCheck;
-    public Transform roofPosition;
 
     Rigidbody2D rb;
 
@@ -52,6 +50,9 @@ public class PlayerController : MonoBehaviour
 
         // Walk acceleration
         acceleration = maxWalkSpeed / accelerationTime;
+
+        // Set the coyote time timer
+        coyoteTimeTimer = coyoteTime;
     }
 
     // Update is called once per frame
@@ -79,19 +80,38 @@ public class PlayerController : MonoBehaviour
             walking = true;
         }
 
-        // Vertical input
-        if (Input.GetKey(KeyCode.W) && IsGrounded()) jumped = true;
+        // Coyote time
+        if (!IsGrounded())
+        {
+            if (coyoteTimeTimer > 0) coyoteTimeTimer -= Time.deltaTime;
+            else coyoteTimeTimer = 0;
+        }
+        else coyoteTimeTimer = coyoteTime;
 
+        // Vertical input
+        if (Input.GetKey(KeyCode.W) && (IsGrounded() || coyoteTimeTimer > 0))
+        {
+            jumped = true;
+            coyoteTimeTimer = 0;
+        }
+
+        // Move the player
         MovementUpdate(xMovement);
     }
 
+    // Method to move the player
     private void MovementUpdate(float xMovement)
     {
         float xChange;
         float yChange = rb.velocity.y;
 
         // Apply gravity
-        if (!IsGrounded()) yChange += gravity * Time.deltaTime;
+        if (!IsGrounded())
+        {
+            // Cap the change of y to the fall speed
+            if (yChange > terminalSpeed) yChange += gravity * Time.deltaTime;
+            else yChange = terminalSpeed;
+        }
 
         // Jump
         if (jumped)
@@ -100,13 +120,10 @@ public class PlayerController : MonoBehaviour
             jumped = false;
         }
 
-        // Limit fall velocity
-        //if (rb.velocity.y < -maxFallSpeed) rb.velocity = new Vector2(rb.velocity.x, maxFallSpeed);
-
         // Walk
-
         if (walking)
         {
+            // Accelerate until max speed is reached
             if (walkSpeed < maxWalkSpeed) walkSpeed += acceleration * Time.deltaTime;
             else walkSpeed = maxWalkSpeed;
         }
@@ -122,76 +139,37 @@ public class PlayerController : MonoBehaviour
                 xMovement = 0;
             }
         }
+
         xChange = xMovement * walkSpeed;
 
+        // Makes it so the player isn't zooming through the air
+        if (!IsGrounded()) xChange /= 2;
+
+        // Update the movement
         rb.velocity = new Vector2(xChange, yChange);
 
         // Change visual direction
         if (xMovement > 0) direction = FacingDirection.right;
         else if (xMovement < 0) direction = FacingDirection.left;
-
-        //// Don't move if no input
-        //if (playerInput != Vector2.zero || decelerate)
-        //{
-        //    Debug.Log("test if in here");
-        //    // Decelerate speed
-        //    if (decelerate)
-        //    {
-        //        // Decelerate until stopped
-        //        if (playerSpeed > 0) playerSpeed -= acceleration * Time.deltaTime;
-        //        else
-        //        {
-        //            playerSpeed = 0;
-        //            decelerate = false;
-        //        }
-        //    }
-        //    // Accelerate speed
-        //    else if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.A))
-        //    {
-        //        // Accelerate until reached max speed
-        //        if (playerSpeed < maxSpeed) playerSpeed += acceleration * Time.deltaTime;
-        //        else playerSpeed = maxSpeed;
-        //    }
-
-        //    // Move the player
-        //    currentVelocity = new Vector2(playerSpeed * Time.deltaTime * playerInput.x, currentVelocity.y);
-        //}
-
-        //// Apply gravity
-        //if (verticalVelocity > gravity) verticalVelocity += gravity * Time.deltaTime;
-        //else verticalVelocity = gravity;
-        //currentVelocity = new Vector2(currentVelocity.x, verticalVelocity * Time.deltaTime);
-
-
-        //rb.MovePosition(rb.position + currentVelocity);
     }
 
+    // Checks if the player is walking
     public bool IsWalking()
     {
         return walking;
     }
 
+    // Checks if the player is on the ground
     public bool IsGrounded()
     {
         // Checks if the raycast hits an object underneath the player at 0.1 distance
         return Physics2D.Raycast(groundPosition.position, Vector2.down, groundCheck);
     }
 
+    // Gets the direction the player is facing
     public FacingDirection GetFacingDirection()
     {
         // Return the facing direction
         return direction;
-    }
-
-    public bool IsRoofed()
-    {
-        // Checks if the raycast hits an object above the player at 0.1 distance
-        return Physics2D.Raycast(roofPosition.position, Vector2.up, roofCheck);
-    }
-
-    public void FallFast()
-    {
-        // Stops the player's jump fast once they hit a roof
-        rb.velocity = new Vector2(rb.velocity.x, 0);
     }
 }
