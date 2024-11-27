@@ -1,14 +1,17 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
+    // Character states
+    public enum CharacterState { idle, walk, jump, die }
+    public CharacterState currentCharacterState = CharacterState.idle;
+    public CharacterState previousCharacterState = CharacterState.idle;
+
     // Facing direction
-    public enum FacingDirection
-    {
-        left, right
-    }
+    public enum FacingDirection { left, right }
     FacingDirection direction = FacingDirection.right;
 
     // Horizontal movement
@@ -34,6 +37,9 @@ public class PlayerController : MonoBehaviour
     public float groundCheck;
     public Transform groundPosition;
 
+    // Health
+    public int health = 10;
+
     Rigidbody2D rb;
 
     // Start is called before the first frame update
@@ -58,6 +64,9 @@ public class PlayerController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        // Update state
+        previousCharacterState = currentCharacterState;
+
         // Horizontal input stopped
         if (Input.GetKeyUp(KeyCode.D) || Input.GetKeyUp(KeyCode.A))
         {
@@ -95,6 +104,53 @@ public class PlayerController : MonoBehaviour
             coyoteTimeTimer = 0;
         }
 
+        // Change player state
+        switch (currentCharacterState)
+        {
+            // Death
+            case CharacterState.die:
+                // No transition out of death
+                break;
+
+            // Jumping
+            case CharacterState.jump:
+                // Landed
+                if (IsGrounded())
+                {
+                    // Either walking or idle
+                    if (IsWalking()) currentCharacterState = CharacterState.walk;
+                    else currentCharacterState = CharacterState.idle;
+                }
+
+                break;
+
+            // Walking
+            case CharacterState.walk:
+                // Stopped walking
+                if (!IsWalking()) currentCharacterState = CharacterState.idle;
+
+                // Jumping
+                if (!IsGrounded()) currentCharacterState = CharacterState.jump;
+
+                break;
+
+            // Walking
+            case CharacterState.idle:
+                // Walking
+                if (IsWalking()) currentCharacterState = CharacterState.walk;
+
+                // Jumping
+                if (!IsGrounded()) currentCharacterState = CharacterState.jump;
+
+                break;
+        }
+
+        // Player died
+        if (IsDead()) currentCharacterState = CharacterState.die;
+    }
+
+    private void FixedUpdate()
+    {
         // Move the player
         MovementUpdate(xMovement);
     }
@@ -171,5 +227,18 @@ public class PlayerController : MonoBehaviour
     {
         // Return the facing direction
         return direction;
+    }
+
+    // Set the player to dead
+    public bool IsDead()
+    {
+        if (health <= 0) return true;
+        else return false;
+    }
+
+    // Deactivate the dead player
+    public void OnDeathAnimationComplete()
+    {
+        gameObject.SetActive(false);
     }
 }
