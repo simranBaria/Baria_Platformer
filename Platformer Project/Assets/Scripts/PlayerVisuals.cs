@@ -13,7 +13,7 @@ public class PlayerVisuals : MonoBehaviour
     public SpriteRenderer bodyRenderer;
     public PlayerController playerController;
 
-    private int idleHash, walkingHash, jumpingHash, dieHash;
+    private int idleHash, walkingHash, jumpingHash, dieHash, dashHash, wallclingHash, windupHash, groundpoundHash, stunHash;
 
     // Start is called before the first frame update
     void Start()
@@ -22,7 +22,11 @@ public class PlayerVisuals : MonoBehaviour
         walkingHash = Animator.StringToHash("Walking");
         jumpingHash = Animator.StringToHash("Jumping");
         dieHash = Animator.StringToHash("Death");
-
+        dashHash = Animator.StringToHash("Dash");
+        wallclingHash = Animator.StringToHash("Wall Cling");
+        windupHash = Animator.StringToHash("Wind Up");
+        groundpoundHash = Animator.StringToHash("Ground Pound");
+        stunHash = Animator.StringToHash("Stun");
     }
 
     // Update is called once per frame
@@ -53,6 +57,21 @@ public class PlayerVisuals : MonoBehaviour
 
                 case CharacterState.die:
                     animator.CrossFade(dieHash, 0f);
+                    break;
+                case CharacterState.dash:
+                    animator.CrossFade(dashHash, 0f);
+                    break;
+                case CharacterState.wallcling:
+                    animator.CrossFade(wallclingHash, 0f);
+                    break;
+                case CharacterState.windup:
+                    animator.CrossFade(windupHash, 0f);
+                    break;
+                case CharacterState.groundpound:
+                    animator.CrossFade(groundpoundHash, 0f);
+                    break;
+                case CharacterState.stun:
+                    animator.CrossFade(stunHash, 0f);
                     break;
             }
         }

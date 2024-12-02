@@ -122,6 +122,37 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &212022704
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 212022705}
+  m_Layer: 2
+  m_Name: Left Wall Transform
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &212022705
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 212022704}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.47, y: 0.5, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1433354315}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &519420028
 GameObject:
   m_ObjectHideFlags: 0
@@ -1727,22 +1758,43 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   currentCharacterState: 0
   previousCharacterState: 0
+  direction: 1
   walkSpeed: 0
   maxWalkSpeed: 10
   walking: 0
   decelerate: 0
   acceleration: 0
   accelerationTime: 0.5
+  dashing: 0
+  canDash: 1
+  dashVelocity: 20
+  dashTime: 0.2
+  dashCooldown: 0.5
+  dashDirection: 0
   apexHeight: 3.5
   apexTime: 0.5
   initialJumpVelocity: 0
   jumped: 0
-  gravity: 0
+  baseGravity: 0
+  currentGravity: 0
   terminalSpeed: -20
   coyoteTime: 10
   coyoteTimeTimer: 0
+  falling: 0
+  wallJumpDirection: 0
+  wallJumpDistance: 5
+  wallJumping: 0
+  groundPounding: 0
+  groundPoundWindUp: 0
+  groundPoundWindUpHeight: 5
+  groundPoundGravity: 0
+  windUpComplete: 0
+  stunComplete: 0
   groundCheck: 0.1
   groundPosition: {fileID: 1285139405}
+  wallCheck: 0.1
+  leftWallPosition: {fileID: 212022705}
+  rightWallPosition: {fileID: 2042429542}
   health: 10
 --- !u!4 &1433354315
 Transform:
@@ -1759,6 +1811,8 @@ Transform:
   m_Children:
   - {fileID: 1598075210}
   - {fileID: 1285139405}
+  - {fileID: 212022705}
+  - {fileID: 2042429542}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1433354316
@@ -1930,6 +1984,37 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 874392358}
+  m_Father: {fileID: 1433354315}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &2042429541
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2042429542}
+  m_Layer: 2
+  m_Name: Right Wall Transform
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2042429542
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2042429541}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.35, y: 0.5, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
   m_Father: {fileID: 1433354315}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2077868377

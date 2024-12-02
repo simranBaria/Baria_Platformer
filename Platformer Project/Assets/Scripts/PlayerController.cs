@@ -6,13 +6,13 @@ using UnityEngine;
 public class PlayerController : MonoBehaviour
 {
     // Character states
-    public enum CharacterState { idle, walk, jump, die }
+    public enum CharacterState { idle, walk, jump, die, dash, wallcling, windup, groundpound, stun }
     public CharacterState currentCharacterState = CharacterState.idle;
     public CharacterState previousCharacterState = CharacterState.idle;
 
     // Facing direction
     public enum FacingDirection { left, right }
-    FacingDirection direction = FacingDirection.right;
+    public FacingDirection direction = FacingDirection.right;
 
     // Horizontal movement
     public float walkSpeed;
@@ -23,19 +23,47 @@ public class PlayerController : MonoBehaviour
     public float accelerationTime;
     float xMovement;
 
+    // Dashing
+    public bool dashing = false;
+    public bool canDash = true;
+    public float dashVelocity;
+    public float dashTime;
+    public float dashCooldown;
+    public float dashDirection;
+
     // Vertical movement
     public float apexHeight;
     public float apexTime;
     public float initialJumpVelocity;
     public bool jumped = false;
-    public float gravity;
+    public float baseGravity;
+    public float currentGravity;
     public float terminalSpeed;
     public float coyoteTime;
     public float coyoteTimeTimer;
+    public bool falling = false;
+
+    // Wall jump
+    public float wallJumpDirection;
+    public float wallJumpDistance;
+    public bool wallJumping = false;
+
+    // Ground pound
+    public bool groundPounding = false;
+    public bool groundPoundWindUp = false;
+    public float groundPoundWindUpHeight;
+    public float groundPoundGravity;
+    public bool windUpComplete = false;
+    public bool stunComplete = false;
 
     // Grounded
     public float groundCheck;
     public Transform groundPosition;
+
+    // Walled
+    public enum WalledState { left, right, none }
+    public float wallCheck;
+    public Transform leftWallPosition, rightWallPosition;
 
     // Health
     public int health = 10;
@@ -49,7 +77,7 @@ public class PlayerController : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
 
         // Gravity
-        gravity = -2 * apexHeight / Mathf.Pow(apexTime, 2);
+        baseGravity = -2 * apexHeight / Mathf.Pow(apexTime, 2);
 
         // Jump velocity
         initialJumpVelocity = 2 * apexHeight / apexTime;
@@ -59,6 +87,9 @@ public class PlayerController : MonoBehaviour
 
         // Set the coyote time timer
         coyoteTimeTimer = coyoteTime;
+
+        // Set the gravity
+        currentGravity = baseGravity;
     }
 
     // Update is called once per frame
@@ -67,27 +98,43 @@ public class PlayerController : MonoBehaviour
         // Update state
         previousCharacterState = currentCharacterState;
 
-        // Horizontal input stopped
-        if (Input.GetKeyUp(KeyCode.D) || Input.GetKeyUp(KeyCode.A))
+        // HORIZONTAL MOVEMENT
+
+        if(!dashing && !wallJumping && !groundPounding)
         {
-            decelerate = true;
-            walking = false;
+            // Horizontal input stopped
+            if (Input.GetKeyUp(KeyCode.D) || Input.GetKeyUp(KeyCode.A))
+            {
+                decelerate = true;
+                walking = false;
+            }
+
+            // Right input
+            if (Input.GetKey(KeyCode.D))
+            {
+                xMovement = 1;
+                direction = FacingDirection.right;
+                walking = true;
+            }
+            // Left input
+            else if (Input.GetKey(KeyCode.A))
+            {
+                xMovement = -1;
+                direction = FacingDirection.left;
+                walking = true;
+            }
+
+            // Dash
+            if (Input.GetKey(KeyCode.J) && canDash)
+            {
+                if (direction == FacingDirection.left) dashDirection = -1;
+                else dashDirection = 1;
+                decelerate = false;
+                StartCoroutine(Dash());
+            }
         }
 
-        // Right input
-        if (Input.GetKey(KeyCode.D))
-        {
-            xMovement = 1;
-            direction = FacingDirection.right;
-            walking = true;
-        }
-        // Left input
-        else if (Input.GetKey(KeyCode.A))
-        {
-            xMovement = -1;
-            direction = FacingDirection.left;
-            walking = true;
-        }
+        // VERTICAL MOVEMENT
 
         // Coyote time
         if (!IsGrounded())
@@ -97,11 +144,28 @@ public class PlayerController : MonoBehaviour
         }
         else coyoteTimeTimer = coyoteTime;
 
-        // Vertical input
-        if (Input.GetKey(KeyCode.W) && (IsGrounded() || coyoteTimeTimer > 0))
+        // Up input
+        if (Input.GetKey(KeyCode.W) && (IsGrounded() || coyoteTimeTimer > 0 || IsWalled() != WalledState.none) && !groundPounding)
         {
             jumped = true;
             coyoteTimeTimer = 0;
+        }
+
+        // Ground pound
+        if (Input.GetKey(KeyCode.S) && !groundPounding)
+        {
+            // Turn off literally everything
+            groundPounding = true;
+            walking = false;
+            decelerate = false;
+            jumped = false;
+            dashing = false;
+            wallJumping = false;
+            walkSpeed = 0;
+            groundPoundWindUp = true;
+            windUpComplete = false;
+            stunComplete = false;
+            groundPoundGravity = 0;
         }
 
         // Change player state
@@ -122,6 +186,15 @@ public class PlayerController : MonoBehaviour
                     else currentCharacterState = CharacterState.idle;
                 }
 
+                // Dashing
+                if (IsDashing()) currentCharacterState = CharacterState.dash;
+
+                // Wall cling
+                if(IsWalled() != WalledState.none) currentCharacterState = CharacterState.wallcling;
+
+                // Ground pounding
+                if (groundPounding) currentCharacterState = CharacterState.windup;
+
                 break;
 
             // Walking
@@ -132,9 +205,15 @@ public class PlayerController : MonoBehaviour
                 // Jumping
                 if (!IsGrounded()) currentCharacterState = CharacterState.jump;
 
+                // Dashing
+                if (IsDashing()) currentCharacterState = CharacterState.dash;
+
+                // Ground pounding
+                if (groundPounding) currentCharacterState = CharacterState.windup;
+
                 break;
 
-            // Walking
+            // Idle
             case CharacterState.idle:
                 // Walking
                 if (IsWalking()) currentCharacterState = CharacterState.walk;
@@ -142,6 +221,56 @@ public class PlayerController : MonoBehaviour
                 // Jumping
                 if (!IsGrounded()) currentCharacterState = CharacterState.jump;
 
+                // Dashing
+                if(IsDashing()) currentCharacterState = CharacterState.dash;
+
+                // Ground pounding
+                if (groundPounding) currentCharacterState = CharacterState.windup;
+
+                break;
+
+            // Dashing
+            case CharacterState.dash:
+                if (!IsDashing())
+                {
+                    // Not on the ground
+                    if (!IsGrounded())
+                    {
+                        if (IsWalled() == WalledState.none) currentCharacterState = CharacterState.jump;
+                        else currentCharacterState = CharacterState.wallcling;
+                    }
+
+                    // On the ground
+                    if (IsWalking()) currentCharacterState = CharacterState.walk;
+                    else currentCharacterState = CharacterState.idle;
+                }
+
+                // Ground pounding
+                if (groundPounding) currentCharacterState = CharacterState.windup;
+
+                break;
+
+            // Wall cling
+            case CharacterState.wallcling:
+                // Either slid down to the floor or jumped off
+                if(IsGrounded()) currentCharacterState = CharacterState.idle;
+                else if (IsWalled() == WalledState.none) currentCharacterState = CharacterState.jump;
+
+                // Ground pounding
+                if (groundPounding) currentCharacterState = CharacterState.windup;
+
+                break;
+
+            case CharacterState.windup:
+                if (windUpComplete) currentCharacterState = CharacterState.groundpound;
+                break;
+
+            case CharacterState.groundpound:
+                if (IsGrounded()) currentCharacterState = CharacterState.stun;
+                break;
+
+            case CharacterState.stun:
+                if (stunComplete) currentCharacterState = CharacterState.idle;
                 break;
         }
 
@@ -161,11 +290,41 @@ public class PlayerController : MonoBehaviour
         float xChange;
         float yChange = rb.velocity.y;
 
+        // Walk
+        if (!dashing)
+        {
+            if (walking)
+            {
+                // Accelerate until max speed is reached
+                if (walkSpeed < maxWalkSpeed) walkSpeed += acceleration * Time.deltaTime;
+                else walkSpeed = maxWalkSpeed;
+            }
+            // Decelerate
+            else if (decelerate)
+            {
+                // Decelerate until stopped
+                if (walkSpeed > 0) walkSpeed -= acceleration * Time.deltaTime;
+                else
+                {
+                    walkSpeed = 0;
+                    decelerate = false;
+                    xMovement = 0;
+                }
+            }
+        }
+
+        xChange = xMovement * walkSpeed;
+
         // Apply gravity
         if (!IsGrounded())
         {
+            // Wall clinging
+            if (IsWalled() != WalledState.none && falling) currentGravity = baseGravity / 4;
+            else if (groundPounding) currentGravity = groundPoundGravity;
+            else currentGravity = baseGravity;
+
             // Cap the change of y to the fall speed
-            if (yChange > terminalSpeed) yChange += gravity * Time.deltaTime;
+            if (yChange > terminalSpeed) yChange += currentGravity * Time.deltaTime;
             else yChange = terminalSpeed;
         }
 
@@ -173,33 +332,41 @@ public class PlayerController : MonoBehaviour
         if (jumped)
         {
             yChange = initialJumpVelocity;
+
+            if (IsWalled() != WalledState.none && !IsGrounded())
+            {
+                if (IsWalled() == WalledState.left) wallJumpDirection = 1;
+                else wallJumpDirection = -1;
+
+                wallJumping = true;
+
+                StartCoroutine(WallJump());
+            }
+
             jumped = false;
         }
 
-        // Walk
-        if (walking)
+        // Ground pound wind up
+        if (groundPoundWindUp)
         {
-            // Accelerate until max speed is reached
-            if (walkSpeed < maxWalkSpeed) walkSpeed += acceleration * Time.deltaTime;
-            else walkSpeed = maxWalkSpeed;
-        }
-        // Decelerate
-        else if (decelerate)
-        {
-            // Decelerate until stopped
-            if (walkSpeed > 0) walkSpeed -= acceleration * Time.deltaTime;
-            else
-            {
-                walkSpeed = 0;
-                decelerate = false;
-                xMovement = 0;
-            }
+            yChange = groundPoundWindUpHeight;
+            groundPoundWindUp = false;
         }
 
-        xChange = xMovement * walkSpeed;
+        // Falling
+        if (rb.velocity.y < 0) falling = true;
+        else falling = false;
+
+        // Stop the player's walk speed if they're against a wall
+        if (IsWalled() != WalledState.none && !wallJumping)
+        {
+            walkSpeed = 0;
+            decelerate = false;
+            walking = false;
+        }
 
         // Makes it so the player isn't zooming through the air
-        if (!IsGrounded()) xChange /= 2;
+        if (!IsGrounded() && !dashing) xChange /= 2;
 
         // Update the movement
         rb.velocity = new Vector2(xChange, yChange);
@@ -209,10 +376,37 @@ public class PlayerController : MonoBehaviour
         else if (xMovement < 0) direction = FacingDirection.left;
     }
 
+    // Coroutine to dash
+    IEnumerator Dash()
+    {
+        dashing = true;
+        canDash = false;
+        xMovement = dashDirection;
+        walkSpeed = dashVelocity;
+
+        yield return new WaitForSeconds(dashTime);
+        dashing = false;
+        walkSpeed = 0;
+
+        yield return new WaitForSeconds(dashCooldown);
+        canDash = true;
+    }
+
+    // Coroutine to wall jump
+    IEnumerator WallJump()
+    {
+        xMovement = wallJumpDirection;
+        walkSpeed = wallJumpDistance;
+
+        yield return new WaitForSeconds(apexTime);
+        wallJumping = false;
+    }
+
     // Checks if the player is walking
     public bool IsWalking()
     {
-        return walking;
+        if (rb.velocity.x != 0) return true;
+        else return false;
     }
 
     // Checks if the player is on the ground
@@ -240,5 +434,38 @@ public class PlayerController : MonoBehaviour
     public void OnDeathAnimationComplete()
     {
         gameObject.SetActive(false);
+    }
+
+    // Checks if the player is dashing
+    public bool IsDashing()
+    {
+        return dashing;
+    }
+
+    // Checks the player's walled state
+    public WalledState IsWalled()
+    {
+        // Player is facing the left wall and holding down the movement key
+        if (Physics2D.Raycast(leftWallPosition.position, Vector2.left, wallCheck) && Input.GetKey(KeyCode.A)) return WalledState.left;
+
+        // Player is facing the right wall and holding down the movement key
+        else if (Physics2D.Raycast(rightWallPosition.position, Vector2.right, wallCheck) && Input.GetKey(KeyCode.D)) return WalledState.right;
+
+        // Player is doing neither
+        else return WalledState.none;
+    }
+
+    // Wind up animation complete
+    public void OnWindUpAnimationComplete()
+    {
+        groundPoundGravity = baseGravity * 4;
+        windUpComplete = true;
+    }
+
+    // Stun animation complete
+    public void OnStunAnimationComplete()
+    {
+        groundPounding = false;
+        stunComplete = true;
     }
 }
