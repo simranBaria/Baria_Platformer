@@ -1778,12 +1778,11 @@ MonoBehaviour:
   baseGravity: 0
   currentGravity: 0
   terminalSpeed: -20
-  coyoteTime: 10
+  coyoteTime: 1
   coyoteTimeTimer: 0
   wallJumpDirection: 0
-  wallJumpDistance: 5
+  wallJumpDistance: 2.5
   wallJumping: 0
-  wallClingFriction: 4
   groundPounding: 0
   groundPoundWindUpHeight: 5
   groundPoundGravity: 0
@@ -1795,6 +1794,7 @@ MonoBehaviour:
   wallCheck: 0.1
   leftWallPosition: {fileID: 212022705}
   rightWallPosition: {fileID: 2042429542}
+  wallClingFriction: 4
   health: 10
 --- !u!4 &1433354315
 Transform:
