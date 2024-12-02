@@ -41,20 +41,20 @@ public class PlayerController : MonoBehaviour
     public float terminalSpeed;
     public float coyoteTime;
     public float coyoteTimeTimer;
-    public bool falling = false;
 
     // Wall jump
     public float wallJumpDirection;
     public float wallJumpDistance;
     public bool wallJumping = false;
+    public float wallClingFriction;
 
     // Ground pound
     public bool groundPounding = false;
-    public bool groundPoundWindUp = false;
     public float groundPoundWindUpHeight;
     public float groundPoundGravity;
     public bool windUpComplete = false;
     public bool stunComplete = false;
+    public float groundPoundVelocityMultiplier;
 
     // Grounded
     public float groundCheck;
@@ -100,6 +100,7 @@ public class PlayerController : MonoBehaviour
 
         // HORIZONTAL MOVEMENT
 
+        // Input is not allowed for the following checks
         if(!dashing && !wallJumping && !groundPounding)
         {
             // Horizontal input stopped
@@ -127,8 +128,11 @@ public class PlayerController : MonoBehaviour
             // Dash
             if (Input.GetKey(KeyCode.J) && canDash)
             {
+                // Get the direction of the dash
                 if (direction == FacingDirection.left) dashDirection = -1;
                 else dashDirection = 1;
+
+                walking = false;
                 decelerate = false;
                 StartCoroutine(Dash());
             }
@@ -139,13 +143,14 @@ public class PlayerController : MonoBehaviour
         // Coyote time
         if (!IsGrounded())
         {
+            // Countdown
             if (coyoteTimeTimer > 0) coyoteTimeTimer -= Time.deltaTime;
             else coyoteTimeTimer = 0;
         }
         else coyoteTimeTimer = coyoteTime;
 
         // Up input
-        if (Input.GetKey(KeyCode.W) && (IsGrounded() || coyoteTimeTimer > 0 || IsWalled() != WalledState.none) && !groundPounding)
+        if (Input.GetKey(KeyCode.W) && (IsGrounded() || coyoteTimeTimer > 0 || IsWalled() != WalledState.none) && !dashing && !groundPounding)
         {
             jumped = true;
             coyoteTimeTimer = 0;
@@ -154,18 +159,18 @@ public class PlayerController : MonoBehaviour
         // Ground pound
         if (Input.GetKey(KeyCode.S) && !groundPounding)
         {
-            // Turn off literally everything
             groundPounding = true;
+            windUpComplete = false;
+            stunComplete = false;
+            groundPoundGravity = 0;
+
+            // Disable literally everything
             walking = false;
             decelerate = false;
             jumped = false;
             dashing = false;
             wallJumping = false;
             walkSpeed = 0;
-            groundPoundWindUp = true;
-            windUpComplete = false;
-            stunComplete = false;
-            groundPoundGravity = 0;
         }
 
         // Change player state
@@ -231,6 +236,7 @@ public class PlayerController : MonoBehaviour
 
             // Dashing
             case CharacterState.dash:
+                // Do not interupt the dash movement
                 if (!IsDashing())
                 {
                     // Not on the ground
@@ -261,14 +267,17 @@ public class PlayerController : MonoBehaviour
 
                 break;
 
+            // Ground pound wind up
             case CharacterState.windup:
                 if (windUpComplete) currentCharacterState = CharacterState.groundpound;
                 break;
 
+            // Ground pound
             case CharacterState.groundpound:
                 if (IsGrounded()) currentCharacterState = CharacterState.stun;
                 break;
 
+            // Stun
             case CharacterState.stun:
                 if (stunComplete) currentCharacterState = CharacterState.idle;
                 break;
@@ -278,6 +287,7 @@ public class PlayerController : MonoBehaviour
         if (IsDead()) currentCharacterState = CharacterState.die;
     }
 
+    // Physics movement
     private void FixedUpdate()
     {
         // Move the player
@@ -319,7 +329,7 @@ public class PlayerController : MonoBehaviour
         if (!IsGrounded())
         {
             // Wall clinging
-            if (IsWalled() != WalledState.none && falling) currentGravity = baseGravity / 4;
+            if (IsWalled() != WalledState.none) currentGravity = baseGravity / wallClingFriction;
             else if (groundPounding) currentGravity = groundPoundGravity;
             else currentGravity = baseGravity;
 
@@ -333,13 +343,14 @@ public class PlayerController : MonoBehaviour
         {
             yChange = initialJumpVelocity;
 
+            // Wall jump
             if (IsWalled() != WalledState.none && !IsGrounded())
             {
+                // Get wall jump direction
                 if (IsWalled() == WalledState.left) wallJumpDirection = 1;
                 else wallJumpDirection = -1;
 
                 wallJumping = true;
-
                 StartCoroutine(WallJump());
             }
 
@@ -347,15 +358,7 @@ public class PlayerController : MonoBehaviour
         }
 
         // Ground pound wind up
-        if (groundPoundWindUp)
-        {
-            yChange = groundPoundWindUpHeight;
-            groundPoundWindUp = false;
-        }
-
-        // Falling
-        if (rb.velocity.y < 0) falling = true;
-        else falling = false;
+        if (groundPounding && !windUpComplete) yChange = groundPoundWindUpHeight;
 
         // Stop the player's walk speed if they're against a wall
         if (IsWalled() != WalledState.none && !wallJumping)
@@ -379,15 +382,18 @@ public class PlayerController : MonoBehaviour
     // Coroutine to dash
     IEnumerator Dash()
     {
+        // Dash
         dashing = true;
         canDash = false;
         xMovement = dashDirection;
         walkSpeed = dashVelocity;
 
+        // Stop dashing
         yield return new WaitForSeconds(dashTime);
         dashing = false;
         walkSpeed = 0;
 
+        // Cooldown
         yield return new WaitForSeconds(dashCooldown);
         canDash = true;
     }
@@ -395,9 +401,11 @@ public class PlayerController : MonoBehaviour
     // Coroutine to wall jump
     IEnumerator WallJump()
     {
+        // Wall jump
         xMovement = wallJumpDirection;
         walkSpeed = wallJumpDistance;
 
+        // Stop wall jumping
         yield return new WaitForSeconds(apexTime);
         wallJumping = false;
     }
@@ -405,6 +413,7 @@ public class PlayerController : MonoBehaviour
     // Checks if the player is walking
     public bool IsWalking()
     {
+        // Player is walking if their velocity isn't 0
         if (rb.velocity.x != 0) return true;
         else return false;
     }
@@ -458,13 +467,15 @@ public class PlayerController : MonoBehaviour
     // Wind up animation complete
     public void OnWindUpAnimationComplete()
     {
-        groundPoundGravity = baseGravity * 4;
+        // Increase the gravity
+        groundPoundGravity = baseGravity * groundPoundVelocityMultiplier;
         windUpComplete = true;
     }
 
     // Stun animation complete
     public void OnStunAnimationComplete()
     {
+        // Stop the ground pounding state
         groundPounding = false;
         stunComplete = true;
     }
