@@ -1780,16 +1780,16 @@ MonoBehaviour:
   terminalSpeed: -20
   coyoteTime: 10
   coyoteTimeTimer: 0
-  falling: 0
   wallJumpDirection: 0
   wallJumpDistance: 5
   wallJumping: 0
+  wallClingFriction: 4
   groundPounding: 0
-  groundPoundWindUp: 0
   groundPoundWindUpHeight: 5
   groundPoundGravity: 0
   windUpComplete: 0
   stunComplete: 0
+  groundPoundVelocityMultiplier: 4
   groundCheck: 0.1
   groundPosition: {fileID: 1285139405}
   wallCheck: 0.1
