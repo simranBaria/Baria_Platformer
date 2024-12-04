@@ -58,6 +58,7 @@ public class PlayerController : MonoBehaviour
     // Grounded
     public float groundCheck;
     public Transform groundPosition;
+    public Vector2 boxcastSize;
 
     // Walled
     public enum WalledState { left, right, none }
@@ -239,7 +240,7 @@ public class PlayerController : MonoBehaviour
             // Dashing
             case CharacterState.dash:
                 // Do not interupt the dash movement
-                if (dashing)
+                if (!dashing)
                 {
                     // Not on the ground
                     if (!IsGrounded())
@@ -247,10 +248,12 @@ public class PlayerController : MonoBehaviour
                         if (GetWalledState() == WalledState.none) currentCharacterState = CharacterState.jump;
                         else currentCharacterState = CharacterState.wallcling;
                     }
-
-                    // On the ground
-                    if (IsWalking()) currentCharacterState = CharacterState.walk;
-                    else currentCharacterState = CharacterState.idle;
+                    else
+                    {
+                        // On the ground
+                        if (IsWalking()) currentCharacterState = CharacterState.walk;
+                        else currentCharacterState = CharacterState.idle;
+                    }
                 }
 
                 // Ground pounding
@@ -420,7 +423,7 @@ public class PlayerController : MonoBehaviour
     public bool IsGrounded()
     {
         // Checks if the raycast hits an object underneath the player at 0.1 distance
-        return Physics2D.Raycast(groundPosition.position, Vector2.down, groundCheck);
+        return Physics2D.BoxCast(groundPosition.position, boxcastSize, 0, Vector2.down, groundCheck);
     }
 
     // Gets the direction the player is facing
